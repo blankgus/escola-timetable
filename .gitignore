@@ -1,1 +1,25 @@
+# Arquivos Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
 
+# Ambientes virtuais
+venv/
+env/
+.venv/
+
+# Arquivos de IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Arquivos de saída
+*.xlsx
+*.csv
+output/
+data/
+
+# Logs
+*.log
