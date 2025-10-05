@@ -1,29 +1,24 @@
 # scheduler_ortools.py
 from ortools.sat.python import cp_model
-from models import Aula
 from neuro_rules import eh_horario_ideal
 from collections import defaultdict
 
 class GradeHorariaORTools:
     def __init__(self, turmas, professores, disciplinas):
         self.turmas = turmas
-        self.professores_lista = professores
-        self.professores = {p.nome: p for p in professores}
-        self.disciplinas = disciplinas
+        self.professores = professores
+        self.disciplinas = {d.nome: d for d in disciplinas}
         self.dias = ["seg", "ter", "qua", "qui", "sex"]
-        self.horarios = list(range(1, 7))  # 1 a 6
+        self.horarios = list(range(1, 7))
         self.model = cp_model.CpModel()
         self.solver = cp_model.CpSolver()
-        self.solver.parameters.max_time_in_seconds = 30.0
-        self.solver.parameters.num_search_workers = 8
+        self.solver.parameters.max_time_in_seconds = 10.0
 
-        # Mapeamentos
         self.turma_idx = {t.nome: i for i, t in enumerate(turmas)}
         self.disciplinas_por_turma = self._disciplinas_por_turma()
 
-        # Variáveis: (turma, disciplina, dia, horario) -> BoolVar
         self.variaveis = {}
-        self.atribuicoes_prof = {}  # (turma, disc, dia, horario) -> lista de professores possíveis
+        self.atribuicoes_prof = {}
 
         self._preparar_dados()
         self._criar_variaveis()
@@ -40,13 +35,12 @@ class GradeHorariaORTools:
         return dp
 
     def _preparar_dados(self):
-        """Pré-calcula quais professores podem dar cada aula em cada dia/horário."""
         for turma_nome, disciplinas in self.disciplinas_por_turma.items():
             for disc_nome in set(disciplinas):
                 for dia in self.dias:
                     for horario in self.horarios:
                         profs_validos = [
-                            p.nome for p in self.professores_lista
+                            p.nome for p in self.professores
                             if disc_nome in p.disciplinas and dia in p.disponibilidade
                         ]
                         if profs_validos:
@@ -84,7 +78,7 @@ class GradeHorariaORTools:
                         self.model.Add(sum(vars_horario) <= 1)
 
         # Restrição 2: um professor só pode dar uma aula por horário
-        for prof in self.professores_lista:
+        for prof in self.professores:
             for dia in self.dias:
                 if dia not in prof.disponibilidade:
                     continue
@@ -98,7 +92,6 @@ class GradeHorariaORTools:
                         self.model.Add(sum(vars_prof) <= 1)
 
     def _definir_objetivo(self):
-        # Maximizar aulas em horários IDEAL (neurociência)
         objetivo = []
         for (turma, disc, dia, horario), var in self.variaveis.items():
             if eh_horario_ideal(self.disciplinas[disc].tipo, horario):
@@ -106,17 +99,14 @@ class GradeHorariaORTools:
         self.model.Maximize(sum(objetivo))
 
     def resolver(self):
-        print("🧠 Resolvendo com Google OR-Tools...")
         status = self.solver.Solve(self.model)
-
         if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
             aulas = []
             for (turma, disc, dia, horario), var in self.variaveis.items():
                 if self.solver.BooleanValue(var):
-                    # Escolher um professor válido (o primeiro)
                     profs = self.atribuicoes_prof.get((turma, disc, dia, horario), [])
                     if profs:
                         aulas.append(Aula(turma, disc, profs[0], dia, horario))
             return aulas
         else:
-            raise Exception("❌ Nenhuma solução viável encontrada. Verifique os dados de entrada.")
+            raise Exception("❌ Nenhuma solução viável encontrada.")
