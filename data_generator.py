@@ -37,7 +37,7 @@ def gerar_turmas():
         for letra in ["A", "B"]:
             turmas.append(Turma(f"{serie}{letra}", serie, "manha"))
     return turmas
-
+# data_generator.py (trecho atualizado)
 def gerar_professores(disciplinas_dict):
     nomes_base = ["Ana", "Bruno", "Carla", "Diego", "Eliane", "Fábio", "Gisele", "Hugo", "Isabel", "Jorge",
                   "Lúcia", "Marcelo", "Natália", "Otávio", "Paula", "Ricardo", "Sofia", "Thiago", "Vanessa", "Yuri"]
@@ -65,14 +65,23 @@ def gerar_professores(disciplinas_dict):
     dias = ["seg", "ter", "qua", "qui", "sex"]
 
     for disc, qtd in disc_por_prof.items():
+        # Verificar carga horária da disciplina
+        carga = disciplinas_dict[disc].carga_semanal
         for _ in range(qtd):
             nome = nomes_base[idx % len(nomes_base)]
             if idx >= len(nomes_base):
                 nome += str(idx // len(nomes_base) + 1)
             idx += 1
-            # Garantir disponibilidade VIÁVEL: pelo menos 4 dias
-            k = random.randint(4, 5)
-            disp = set(random.sample(dias, k=k))
+            
+            # 🔑 REGRA CRÍTICA:
+            # Se a disciplina tem 5 aulas/semana, o professor PRECISA estar disponível todos os dias
+            if carga >= 5:
+                disp = set(dias)  # todos os 5 dias
+            else:
+                # Para disciplinas com ≤4 aulas, permitir 4 ou 5 dias
+                k = random.randint(4, 5)
+                disp = set(random.sample(dias, k=k))
+            
             professores.append(Professor(nome, [disc], disp))
     
     return professores
