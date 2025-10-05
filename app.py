@@ -1,3 +1,16 @@
+# app.py (versão de debug)
+import os
+print("✅ Diretório atual:", os.getcwd())
+print("📄 Arquivos na pasta:")
+for f in os.listdir():
+    print(f"  - {f}")
+
+try:
+    from session_state import init_session_state
+    print("✅ session_state.py carregado!")
+except Exception as e:
+    print(f"❌ Erro ao importar session_state: {e}")
+    raise
 # app.py
 import streamlit as st
 import json
