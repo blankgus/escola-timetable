@@ -1,6 +1,6 @@
+# data_generator.py
 from models import Turma, Professor, Disciplina
 import random
-import string
 
 def gerar_disciplinas():
     ef2 = [
@@ -41,6 +41,7 @@ def gerar_turmas():
 def gerar_professores(disciplinas_dict):
     nomes_base = ["Ana", "Bruno", "Carla", "Diego", "Eliane", "Fábio", "Gisele", "Hugo", "Isabel", "Jorge",
                   "Lúcia", "Marcelo", "Natália", "Otávio", "Paula", "Ricardo", "Sofia", "Thiago", "Vanessa", "Yuri"]
+    random.seed(42)
     random.shuffle(nomes_base)
     
     disc_por_prof = {
@@ -65,9 +66,13 @@ def gerar_professores(disciplinas_dict):
 
     for disc, qtd in disc_por_prof.items():
         for _ in range(qtd):
-            nome = nomes_base[idx % len(nomes_base)] + (str(idx // len(nomes_base) + 1) if idx >= len(nomes_base) else "")
+            nome = nomes_base[idx % len(nomes_base)]
+            if idx >= len(nomes_base):
+                nome += str(idx // len(nomes_base) + 1)
             idx += 1
-            disp = set(random.sample(dias, k=random.randint(3, 5)))
+            # Garantir disponibilidade VIÁVEL: pelo menos 4 dias
+            k = random.randint(4, 5)
+            disp = set(random.sample(dias, k=k))
             professores.append(Professor(nome, [disc], disp))
     
     return professores
