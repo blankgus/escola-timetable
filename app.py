@@ -1,16 +1,3 @@
-# app.py (versão de debug)
-import os
-print("✅ Diretório atual:", os.getcwd())
-print("📄 Arquivos na pasta:")
-for f in os.listdir():
-    print(f"  - {f}")
-
-try:
-    from session_state import init_session_state
-    print("✅ session_state.py carregado!")
-except Exception as e:
-    print(f"❌ Erro ao importar session_state: {e}")
-    raise
 # app.py
 import streamlit as st
 import json
@@ -30,11 +17,10 @@ st.title("🕒 Gerador Inteligente de Grade Horária")
 # Abas
 aba1, aba2, aba3, aba4 = st.tabs(["🏠 Início", "📚 Disciplinas", "👩‍🏫 Professores", "🎒 Turmas"])
 
-# =================== ABA 1: INÍCIO (GERAR GRADE + SALVAR/CARREGAR) ===================
+# =================== ABA 1: INÍCIO ===================
 with aba1:
     st.header("Gerenciar Configuração e Gerar Grade")
     
-    # Salvar/Carregar
     col_save, col_load = st.columns(2)
     
     with col_save:
@@ -76,7 +62,6 @@ with aba1:
 
     st.divider()
     st.subheader("Gerar Grade Horária")
-    st.write("Clique abaixo para gerar a grade com os dados atuais.")
     
     if st.button("🚀 Gerar Grade com Dados Atuais"):
         with st.spinner("Gerando grade com Google OR-Tools..."):
