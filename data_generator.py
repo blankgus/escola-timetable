@@ -4,8 +4,8 @@ import random
 
 def gerar_disciplinas():
     ef2 = [
-        Disciplina("Português", 5, "pesada", ["6ano", "7ano", "8ano", "9ano"]),
-        Disciplina("Matemática", 5, "pesada", ["6ano", "7ano", "8ano", "9ano"]),
+        Disciplina("Português", 4, "pesada", ["6ano", "7ano", "8ano", "9ano"]),  # ⚠️ Reduzido para 4
+        Disciplina("Matemática", 4, "pesada", ["6ano", "7ano", "8ano", "9ano"]),  # ⚠️ Reduzido para 4
         Disciplina("Ciências", 3, "media", ["6ano", "7ano"]),
         Disciplina("História", 3, "media", ["6ano", "7ano", "8ano", "9ano"]),
         Disciplina("Geografia", 3, "media", ["6ano", "7ano", "8ano", "9ano"]),
@@ -14,8 +14,8 @@ def gerar_disciplinas():
         Disciplina("Educação Física", 2, "pratica", ["6ano", "7ano", "8ano", "9ano"]),
     ]
     em = [
-        Disciplina("Português", 5, "pesada", ["1em", "2em", "3em"]),
-        Disciplina("Matemática", 5, "pesada", ["1em", "2em", "3em"]),
+        Disciplina("Português", 4, "pesada", ["1em", "2em", "3em"]),  # ⚠️ Reduzido para 4
+        Disciplina("Matemática", 4, "pesada", ["1em", "2em", "3em"]),  # ⚠️ Reduzido para 4
         Disciplina("Biologia", 3, "media", ["1em", "2em", "3em"]),
         Disciplina("Física", 3, "pesada", ["2em", "3em"]),
         Disciplina("Química", 3, "pesada", ["1em", "2em", "3em"]),
@@ -37,27 +37,28 @@ def gerar_turmas():
         for letra in ["A", "B"]:
             turmas.append(Turma(f"{serie}{letra}", serie, "manha"))
     return turmas
-# data_generator.py (trecho atualizado)
+
 def gerar_professores(disciplinas_dict):
     nomes_base = ["Ana", "Bruno", "Carla", "Diego", "Eliane", "Fábio", "Gisele", "Hugo", "Isabel", "Jorge",
                   "Lúcia", "Marcelo", "Natália", "Otávio", "Paula", "Ricardo", "Sofia", "Thiago", "Vanessa", "Yuri"]
     random.seed(42)
     random.shuffle(nomes_base)
     
+    # Aumentado número de professores nas disciplinas críticas
     disc_por_prof = {
-        "Português": 3,
-        "Matemática": 3,
-        "Ciências": 2,
-        "Biologia": 2,
-        "Física": 2,
-        "Química": 2,
-        "História": 2,
-        "Geografia": 2,
-        "Inglês": 2,
-        "Artes": 1,
-        "Educação Física": 1,
-        "Filosofia": 1,
-        "Sociologia": 1,
+        "Português": 4,
+        "Matemática": 4,
+        "Ciências": 3,
+        "Biologia": 3,
+        "Física": 3,
+        "Química": 3,
+        "História": 3,
+        "Geografia": 3,
+        "Inglês": 3,
+        "Artes": 2,
+        "Educação Física": 2,
+        "Filosofia": 2,
+        "Sociologia": 2,
     }
 
     professores = []
@@ -65,23 +66,19 @@ def gerar_professores(disciplinas_dict):
     dias = ["seg", "ter", "qua", "qui", "sex"]
 
     for disc, qtd in disc_por_prof.items():
-        # Verificar carga horária da disciplina
         carga = disciplinas_dict[disc].carga_semanal
-        for _ in range(qtd):
+        for i in range(qtd):
             nome = nomes_base[idx % len(nomes_base)]
             if idx >= len(nomes_base):
                 nome += str(idx // len(nomes_base) + 1)
             idx += 1
-            
-            # 🔑 REGRA CRÍTICA:
-            # Se a disciplina tem 5 aulas/semana, o professor PRECISA estar disponível todos os dias
-            if carga >= 5:
-                disp = set(dias)  # todos os 5 dias
+
+            # Professores de disciplinas com 4+ aulas → 5 dias de disponibilidade
+            if carga >= 4:
+                disp = set(dias)  # todos os dias
             else:
-                # Para disciplinas com ≤4 aulas, permitir 4 ou 5 dias
-                k = random.randint(4, 5)
-                disp = set(random.sample(dias, k=k))
-            
+                disp = set(dias)  # para simplificar, todos com 5 dias
+
             professores.append(Professor(nome, [disc], disp))
     
     return professores
