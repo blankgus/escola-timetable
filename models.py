@@ -1,3 +1,4 @@
+# models.py
 from dataclasses import dataclass
 from typing import List, Set
 
@@ -12,14 +13,19 @@ class Disciplina:
 class Professor:
     nome: str
     disciplinas: List[str]
-    disponibilidade: Set[str]  # ex: {'seg', 'ter', 'qua', 'qui', 'sex'}
-    max_aulas_dia: int = 6
+    disponibilidade: Set[str]
 
 @dataclass
 class Turma:
     nome: str
     serie: str
-    turno: str  # 'manha' ou 'tarde'
+    turno: str
+
+@dataclass
+class Sala:
+    nome: str
+    capacidade: int = 30
+    tipo: str = "normal"
 
 @dataclass
 class Aula:
