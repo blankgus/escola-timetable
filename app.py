@@ -53,6 +53,16 @@ with aba1:
     st.divider()
     st.subheader("Gerar Grade Horária")
     
+    if not st.session_state.turmas:
+        st.warning("⚠️ Cadastre pelo menos uma turma.")
+        st.stop()
+    if not st.session_state.professores:
+        st.warning("⚠️ Cadastre pelo menos um professor.")
+        st.stop()
+    if not st.session_state.disciplinas:
+        st.warning("⚠️ Cadastre pelo menos uma disciplina.")
+        st.stop()
+    
     if st.button("🚀 Gerar Grade com Dados Atuais"):
         with st.spinner("Gerando grade com Google OR-Tools..."):
             try:
@@ -63,7 +73,6 @@ with aba1:
                 )
                 aulas = grade.resolver()
                 
-                # Exibir grade
                 dados = []
                 for aula in aulas:
                     dados.append({
@@ -86,7 +95,6 @@ with aba1:
                 st.success("✅ Grade gerada com sucesso!")
                 st.dataframe(tabela, use_container_width=True)
                 
-                # Exportar Excel
                 output = io.BytesIO()
                 with pd.ExcelWriter(output, engine='openpyxl') as writer:
                     tabela.to_excel(writer, sheet_name="Grade por Turma")
@@ -100,7 +108,6 @@ with aba1:
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 )
                 
-                # Exportar PDF
                 pdf_path = exportar_para_pdf(aulas)
                 with open(pdf_path, "rb") as f:
                     st.download_button(
@@ -110,11 +117,9 @@ with aba1:
                         mime="application/pdf"
                     )
                 
-                # Relatórios
                 st.divider()
                 st.subheader("📊 Relatórios")
                 
-                # Horas por professor
                 prof_horas = {}
                 for aula in aulas:
                     prof = aula.professor
@@ -123,7 +128,6 @@ with aba1:
                 st.markdown("### ⏱️ Horas por Professor")
                 st.dataframe(df_prof, use_container_width=True)
                 
-                # Horas por disciplina
                 disc_horas = {}
                 for aula in aulas:
                     disc = aula.disciplina
@@ -201,7 +205,11 @@ with aba3:
         with st.expander(f"🧑‍🏫 {prof.nome} | Disciplinas: {', '.join(prof.disciplinas)}"):
             with st.form(f"edit_prof_{i}"):
                 nome = st.text_input("Nome", prof.nome, key=f"p_nome_{i}")
-                disc_atual = st.multiselect("Disciplinas", disc_nomes, default=prof.disciplinas, key=f"p_disc_{i}")
+                
+                # 🔑 CORREÇÃO: filtrar disciplinas válidas
+                disc_validas = [d for d in prof.disciplinas if d in disc_nomes]
+                disc_atual = st.multiselect("Disciplinas", disc_nomes, default=disc_validas, key=f"p_disc_{i}")
+                
                 dias = ["seg", "ter", "qua", "qui", "sex"]
                 disp_atual = st.multiselect("Disponibilidade", dias, default=list(prof.disponibilidade), key=f"p_disp_{i}")
                 
@@ -312,7 +320,7 @@ with aba6:
     for i, periodo in enumerate(st.session_state.periodos[:]):
         with st.expander(f"📅 {periodo['nome']} | {periodo['inicio']} a {periodo['fim']}"):
             with st.form(f"edit_periodo_{i}"):
-                nome = st.text_input("Nome", periodo["nome"], key=f"p_nome_{i}")
+                nome = st.text_input("Nome", periodo["nome"], key=f"p_nome_{periodo['nome'].replace(' ', '_')}_{i}")
                 inicio = st.date_input("Início", value=pd.to_datetime(periodo["inicio"]), key=f"p_inicio_{i}")
                 fim = st.date_input("Fim", value=pd.to_datetime(periodo["fim"]), key=f"p_fim_{i}")
                 

@@ -4,8 +4,8 @@ import random
 
 def gerar_disciplinas():
     ef2 = [
-        Disciplina("Português", 4, "pesada", ["6ano", "7ano", "8ano", "9ano"]),  # ⚠️ Reduzido para 4
-        Disciplina("Matemática", 4, "pesada", ["6ano", "7ano", "8ano", "9ano"]),  # ⚠️ Reduzido para 4
+        Disciplina("Português", 4, "pesada", ["6ano", "7ano", "8ano", "9ano"]),
+        Disciplina("Matemática", 4, "pesada", ["6ano", "7ano", "8ano", "9ano"]),
         Disciplina("Ciências", 3, "media", ["6ano", "7ano"]),
         Disciplina("História", 3, "media", ["6ano", "7ano", "8ano", "9ano"]),
         Disciplina("Geografia", 3, "media", ["6ano", "7ano", "8ano", "9ano"]),
@@ -14,8 +14,8 @@ def gerar_disciplinas():
         Disciplina("Educação Física", 2, "pratica", ["6ano", "7ano", "8ano", "9ano"]),
     ]
     em = [
-        Disciplina("Português", 4, "pesada", ["1em", "2em", "3em"]),  # ⚠️ Reduzido para 4
-        Disciplina("Matemática", 4, "pesada", ["1em", "2em", "3em"]),  # ⚠️ Reduzido para 4
+        Disciplina("Português", 4, "pesada", ["1em", "2em", "3em"]),
+        Disciplina("Matemática", 4, "pesada", ["1em", "2em", "3em"]),
         Disciplina("Biologia", 3, "media", ["1em", "2em", "3em"]),
         Disciplina("Física", 3, "pesada", ["2em", "3em"]),
         Disciplina("Química", 3, "pesada", ["1em", "2em", "3em"]),
@@ -44,7 +44,6 @@ def gerar_professores(disciplinas_dict):
     random.seed(42)
     random.shuffle(nomes_base)
     
-    # Aumentado número de professores nas disciplinas críticas
     disc_por_prof = {
         "Português": 4,
         "Matemática": 4,
@@ -73,12 +72,12 @@ def gerar_professores(disciplinas_dict):
                 nome += str(idx // len(nomes_base) + 1)
             idx += 1
 
-            # Professores de disciplinas com 4+ aulas → 5 dias de disponibilidade
             if carga >= 4:
-                disp = set(dias)  # todos os dias
+                disp = set(dias)
             else:
-                disp = set(dias)  # para simplificar, todos com 5 dias
+                disp = set(dias)
 
+            # 🔑 Professores usam STRINGS de disciplinas (nomes)
             professores.append(Professor(nome, [disc], disp))
     
     return professores

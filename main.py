@@ -5,14 +5,17 @@ from export import exportar_para_excel
 
 def main():
     print("📚 Gerando ambiente escolar...")
-    disciplinas = gerar_disciplinas()
+    disciplinas_dict = gerar_disciplinas()  # retorna dict
     turmas = gerar_turmas()
-    professores = gerar_professores(disciplinas)
+    professores = gerar_professores(disciplinas_dict)
+    
+    # 🔑 Converter dict para lista de objetos Disciplina
+    disciplinas_lista = list(disciplinas_dict.values())
 
     print(f"→ Turmas: {len(turmas)} | Professores: {len(professores)}")
     
     print("🧠 Gerando grade horária com Google OR-Tools...")
-    grade = GradeHorariaORTools(turmas, professores, disciplinas)
+    grade = GradeHorariaORTools(turmas, professores, disciplinas_lista)
     aulas = grade.resolver()
     
     print("📤 Exportando para Excel...")

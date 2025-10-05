@@ -2,12 +2,21 @@
 from ortools.sat.python import cp_model
 from neuro_rules import eh_horario_ideal
 from collections import defaultdict
+from models import Aula
 
 class GradeHorariaORTools:
     def __init__(self, turmas, professores, disciplinas):
         self.turmas = turmas
         self.professores = professores
-        self.disciplinas = {d.nome: d for d in disciplinas}
+        
+        # 🔧 CORREÇÃO: validar disciplinas
+        self.disciplinas = {}
+        for d in disciplinas:
+            if hasattr(d, 'nome'):
+                self.disciplinas[d.nome] = d
+            else:
+                raise ValueError(f"Disciplina inválida: {d}")
+
         self.dias = ["seg", "ter", "qua", "qui", "sex"]
         self.horarios = list(range(1, 7))
         self.model = cp_model.CpModel()
