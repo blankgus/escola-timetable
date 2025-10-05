@@ -1,12 +1,13 @@
 # app.py
 import streamlit as st
 import json
-from session_state import init_session_state
-from models import Turma, Professor, Disciplina
-from scheduler_ortools import GradeHorariaORTools
-from export import exportar_para_excel
 import pandas as pd
 import io
+from session_state import init_session_state
+from models import Turma, Professor, Disciplina, Sala
+from scheduler_ortools import GradeHorariaORTools
+from export import exportar_para_excel, exportar_para_pdf
+import database
 
 # Inicializar estado da sessão
 init_session_state()
@@ -15,7 +16,8 @@ st.set_page_config(page_title="Escola Timetable", layout="wide")
 st.title("🕒 Gerador Inteligente de Grade Horária")
 
 # Abas
-aba1, aba2, aba3, aba4 = st.tabs(["🏠 Início", "📚 Disciplinas", "👩‍🏫 Professores", "🎒 Turmas"])
+abas = st.tabs(["🏠 Início", "📚 Disciplinas", "👩‍🏫 Professores", "🎒 Turmas", "🏫 Salas", "📅 Calendário"])
+aba1, aba2, aba3, aba4, aba5, aba6 = abas
 
 # =================== ABA 1: INÍCIO ===================
 with aba1:
@@ -24,38 +26,26 @@ with aba1:
     col_save, col_load = st.columns(2)
     
     with col_save:
-        if st.button("💾 Salvar Configuração"):
-            config = {
-                "turmas": [{"nome": t.nome, "serie": t.serie, "turno": t.turno} for t in st.session_state.turmas],
-                "professores": [
-                    {"nome": p.nome, "disciplinas": p.disciplinas, "disponibilidade": list(p.disponibilidade)}
-                    for p in st.session_state.professores
-                ],
-                "disciplinas": [
-                    {"nome": d.nome, "carga_semanal": d.carga_semanal, "tipo": d.tipo, "series": d.series}
-                    for d in st.session_state.disciplinas
-                ]
-            }
-            st.download_button(
-                label="⬇️ Baixar config.json",
-                data=json.dumps(config, indent=2, ensure_ascii=False),
-                file_name="config_escola.json",
-                mime="application/json"
-            )
+        if st.button("💾 Salvar Tudo no Banco"):
+            try:
+                database.salvar_turmas(st.session_state.turmas)
+                database.salvar_professores(st.session_state.professores)
+                database.salvar_disciplinas(st.session_state.disciplinas)
+                database.salvar_salas(st.session_state.salas)
+                database.salvar_periodos(st.session_state.periodos)
+                st.success("✅ Dados salvos no banco SQLite!")
+            except Exception as e:
+                st.error(f"❌ Erro ao salvar: {str(e)}")
     
     with col_load:
-        uploaded_file = st.file_uploader("⬆️ Carregar configuração (.json)", type="json")
-        if uploaded_file:
+        if st.button("🔄 Carregar do Banco"):
             try:
-                config = json.load(uploaded_file)
-                st.session_state.turmas = [Turma(t["nome"], t["serie"], t["turno"]) for t in config["turmas"]]
-                st.session_state.professores = [
-                    Professor(p["nome"], p["disciplinas"], set(p["disponibilidade"])) for p in config["professores"]
-                ]
-                st.session_state.disciplinas = [
-                    Disciplina(d["nome"], d["carga_semanal"], d["tipo"], d["series"]) for d in config["disciplinas"]
-                ]
-                st.success("✅ Configuração carregada com sucesso!")
+                st.session_state.turmas = database.carregar_turmas()
+                st.session_state.professores = database.carregar_professores()
+                st.session_state.disciplinas = database.carregar_disciplinas()
+                st.session_state.salas = database.carregar_salas()
+                st.session_state.periodos = database.carregar_periodos()
+                st.success("✅ Dados carregados do banco!")
                 st.rerun()
             except Exception as e:
                 st.error(f"❌ Erro ao carregar: {str(e)}")
@@ -73,6 +63,7 @@ with aba1:
                 )
                 aulas = grade.resolver()
                 
+                # Exibir grade
                 dados = []
                 for aula in aulas:
                     dados.append({
@@ -95,6 +86,7 @@ with aba1:
                 st.success("✅ Grade gerada com sucesso!")
                 st.dataframe(tabela, use_container_width=True)
                 
+                # Exportar Excel
                 output = io.BytesIO()
                 with pd.ExcelWriter(output, engine='openpyxl') as writer:
                     tabela.to_excel(writer, sheet_name="Grade por Turma")
@@ -107,6 +99,38 @@ with aba1:
                     file_name="grade_horaria.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 )
+                
+                # Exportar PDF
+                pdf_path = exportar_para_pdf(aulas)
+                with open(pdf_path, "rb") as f:
+                    st.download_button(
+                        label="📄 Baixar PDF",
+                        data=f.read(),
+                        file_name="grade_horaria.pdf",
+                        mime="application/pdf"
+                    )
+                
+                # Relatórios
+                st.divider()
+                st.subheader("📊 Relatórios")
+                
+                # Horas por professor
+                prof_horas = {}
+                for aula in aulas:
+                    prof = aula.professor
+                    prof_horas[prof] = prof_horas.get(prof, 0) + 1
+                df_prof = pd.DataFrame(list(prof_horas.items()), columns=["Professor", "Horas Semanais"])
+                st.markdown("### ⏱️ Horas por Professor")
+                st.dataframe(df_prof, use_container_width=True)
+                
+                # Horas por disciplina
+                disc_horas = {}
+                for aula in aulas:
+                    disc = aula.disciplina
+                    disc_horas[disc] = disc_horas.get(disc, 0) + 1
+                df_disc = pd.DataFrame(list(disc_horas.items()), columns=["Disciplina", "Horas Semanais"])
+                st.markdown("### 📚 Horas por Disciplina")
+                st.dataframe(df_disc, use_container_width=True)
                 
             except Exception as e:
                 st.error(f"❌ Erro ao gerar grade: {str(e)}")
@@ -224,4 +248,83 @@ with aba4:
                     st.rerun()
                 if col2.form_submit_button("🗑️ Excluir"):
                     st.session_state.turmas.pop(i)
+                    st.rerun()
+
+# =================== ABA 5: SALAS ===================
+with aba5:
+    st.header("Gerenciar Salas")
+    
+    with st.form("add_sala"):
+        st.subheader("Adicionar Sala")
+        nome_sala = st.text_input("Nome da Sala")
+        capacidade = st.number_input("Capacidade", min_value=1, value=30)
+        tipo = st.selectbox("Tipo", ["normal", "laboratório", "auditório"])
+        
+        if st.form_submit_button("➕ Adicionar Sala"):
+            if nome_sala:
+                st.session_state.salas.append(Sala(nome_sala, capacidade, tipo))
+                st.success(f"✅ Sala '{nome_sala}' adicionada!")
+                st.rerun()
+            else:
+                st.error("⚠️ Preencha o nome da sala.")
+    
+    st.subheader("Salas Cadastradas")
+    for i, sala in enumerate(st.session_state.salas[:]):
+        with st.expander(f"🏫 {sala.nome} | Capacidade: {sala.capacidade} | Tipo: {sala.tipo}"):
+            with st.form(f"edit_sala_{i}"):
+                nome = st.text_input("Nome", sala.nome, key=f"s_nome_{i}")
+                capacidade = st.number_input("Capacidade", min_value=1, value=sala.capacidade, key=f"s_cap_{i}")
+                tipo = st.selectbox("Tipo", ["normal", "laboratório", "auditório"], 
+                                   index=["normal", "laboratório", "auditório"].index(sala.tipo), key=f"s_tipo_{i}")
+                
+                col1, col2 = st.columns(2)
+                if col1.form_submit_button("💾 Salvar"):
+                    st.session_state.salas[i] = Sala(nome, capacidade, tipo)
+                    st.success("✅ Atualizado!")
+                    st.rerun()
+                if col2.form_submit_button("🗑️ Excluir"):
+                    st.session_state.salas.pop(i)
+                    st.rerun()
+
+# =================== ABA 6: CALENDÁRIO ===================
+with aba6:
+    st.header("Gerenciar Períodos Escolares")
+    
+    with st.form("add_periodo"):
+        st.subheader("Adicionar Período")
+        nome_periodo = st.text_input("Nome do Período (ex: 1º Bimestre)")
+        inicio = st.date_input("Data de Início")
+        fim = st.date_input("Data de Fim")
+        
+        if st.form_submit_button("➕ Adicionar Período"):
+            if nome_periodo:
+                st.session_state.periodos.append({
+                    "nome": nome_periodo,
+                    "inicio": str(inicio),
+                    "fim": str(fim)
+                })
+                st.success(f"✅ Período '{nome_periodo}' adicionado!")
+                st.rerun()
+            else:
+                st.error("⚠️ Preencha o nome do período.")
+    
+    st.subheader("Períodos Cadastrados")
+    for i, periodo in enumerate(st.session_state.periodos[:]):
+        with st.expander(f"📅 {periodo['nome']} | {periodo['inicio']} a {periodo['fim']}"):
+            with st.form(f"edit_periodo_{i}"):
+                nome = st.text_input("Nome", periodo["nome"], key=f"p_nome_{i}")
+                inicio = st.date_input("Início", value=pd.to_datetime(periodo["inicio"]), key=f"p_inicio_{i}")
+                fim = st.date_input("Fim", value=pd.to_datetime(periodo["fim"]), key=f"p_fim_{i}")
+                
+                col1, col2 = st.columns(2)
+                if col1.form_submit_button("💾 Salvar"):
+                    st.session_state.periodos[i] = {
+                        "nome": nome,
+                        "inicio": str(inicio),
+                        "fim": str(fim)
+                    }
+                    st.success("✅ Atualizado!")
+                    st.rerun()
+                if col2.form_submit_button("🗑️ Excluir"):
+                    st.session_state.periodos.pop(i)
                     st.rerun()
