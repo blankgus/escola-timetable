@@ -3,11 +3,11 @@ import streamlit as st
 import json
 import pandas as pd
 import io
-from session_state import init_session_state
-from models import Turma, Professor, Disciplina, Sala
-from scheduler_ortools import GradeHorariaORTools
-from export import exportar_para_excel, exportar_para_pdf
-import database
+from escola_timetable.session_state import init_session_state
+from escola_timetable.models import Turma, Professor, Disciplina, Sala
+from escola_timetable.scheduler_ortools import GradeHorariaORTools
+from escola_timetable.export import exportar_para_excel, exportar_para_pdf
+from escola_timetable import database
 
 # Inicializar estado da sessão
 init_session_state()
