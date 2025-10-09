@@ -1,11 +1,8 @@
-# neuro_rules.py
 def eh_horario_ideal(tipo_disciplina: str, horario: int) -> bool:
-    """
-    Usado apenas para OTIMIZAÇÃO (não é restrição rígida).
-    """
+    """Horários ideais considerando recreio na posição 4"""
     if tipo_disciplina == "pesada":
-        return horario <= 4  # até o 4º horário (não 3º)
+        return horario <= 3  # Até 09:30
     elif tipo_disciplina == "pratica":
-        return horario >= 4
+        return horario >= 5  # Após recreio
     else:
-        return True
+        return horario != 4  # Qualquer horário exceto recreio

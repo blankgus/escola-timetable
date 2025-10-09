@@ -1,27 +1,20 @@
-# scheduler_ortools.py
 from ortools.sat.python import cp_model
 from neuro_rules import eh_horario_ideal
 from collections import defaultdict
-from models import Aula
+from models import Aula, DIAS_SEMANA
+import streamlit as st
 
 class GradeHorariaORTools:
-    def __init__(self, turmas, professores, disciplinas):
+    def __init__(self, turmas, professores, disciplinas, relaxar_horario_ideal=False):
         self.turmas = turmas
         self.professores = professores
-        
-        # 🔧 CORREÇÃO: validar disciplinas
-        self.disciplinas = {}
-        for d in disciplinas:
-            if hasattr(d, 'nome'):
-                self.disciplinas[d.nome] = d
-            else:
-                raise ValueError(f"Disciplina inválida: {d}")
-
-        self.dias = ["seg", "ter", "qua", "qui", "sex"]
-        self.horarios = list(range(1, 7))
+        self.disciplinas = {d.nome: d for d in disciplinas}
+        self.dias = DIAS_SEMANA  # 7 dias: dom a sab
+        self.horarios = [1, 2, 3, 5, 6, 7]  # Sem recreio (horário 4)
         self.model = cp_model.CpModel()
         self.solver = cp_model.CpSolver()
         self.solver.parameters.max_time_in_seconds = 10.0
+        self.relaxar_horario_ideal = relaxar_horario_ideal
 
         self.turma_idx = {t.nome: i for i, t in enumerate(turmas)}
         self.disciplinas_por_turma = self._disciplinas_por_turma()
@@ -32,7 +25,6 @@ class GradeHorariaORTools:
         self._preparar_dados()
         self._criar_variaveis()
         self._adicionar_restricoes()
-        self._definir_objetivo()
 
     def _disciplinas_por_turma(self):
         dp = defaultdict(list)
@@ -47,7 +39,7 @@ class GradeHorariaORTools:
         for turma_nome, disciplinas in self.disciplinas_por_turma.items():
             for disc_nome in set(disciplinas):
                 for dia in self.dias:
-                    for horario in self.horarios:
+                    for horario in self.horarios:  # Já exclui horário 4
                         profs_validos = [
                             p.nome for p in self.professores
                             if disc_nome in p.disciplinas and dia in p.disponibilidade
@@ -75,7 +67,6 @@ class GradeHorariaORTools:
                 self.model.Add(sum(vars_disc) == total)
 
     def _adicionar_restricoes(self):
-        # Restrição 1: uma turma só pode ter uma aula por horário
         for turma_nome in self.turma_idx:
             for dia in self.dias:
                 for horario in self.horarios:
@@ -86,7 +77,6 @@ class GradeHorariaORTools:
                     if vars_horario:
                         self.model.Add(sum(vars_horario) <= 1)
 
-        # Restrição 2: um professor só pode dar uma aula por horário
         for prof in self.professores:
             for dia in self.dias:
                 if dia not in prof.disponibilidade:
@@ -100,22 +90,25 @@ class GradeHorariaORTools:
                     if vars_prof:
                         self.model.Add(sum(vars_prof) <= 1)
 
-    def _definir_objetivo(self):
-        objetivo = []
-        for (turma, disc, dia, horario), var in self.variaveis.items():
-            if eh_horario_ideal(self.disciplinas[disc].tipo, horario):
-                objetivo.append(var)
-        self.model.Maximize(sum(objetivo))
-
     def resolver(self):
+        if not self.relaxar_horario_ideal:
+            objetivo = []
+            for (turma, disc, dia, horario), var in self.variaveis.items():
+                if eh_horario_ideal(self.disciplinas[disc].tipo, horario):
+                    objetivo.append(var)
+            self.model.Maximize(sum(objetivo))
+        
         status = self.solver.Solve(self.model)
+        
         if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
             aulas = []
             for (turma, disc, dia, horario), var in self.variaveis.items():
                 if self.solver.BooleanValue(var):
                     profs = self.atribuicoes_prof.get((turma, disc, dia, horario), [])
+                    salas = st.session_state.salas if 'salas' in st.session_state else []
+                    sala_nome = salas[0].nome if salas else "Sala 1"
                     if profs:
-                        aulas.append(Aula(turma, disc, profs[0], dia, horario))
+                        aulas.append(Aula(turma, disc, profs[0], dia, horario, sala_nome))
             return aulas
         else:
             raise Exception("❌ Nenhuma solução viável encontrada.")
