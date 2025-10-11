@@ -10,7 +10,10 @@ def init_db():
             id TEXT PRIMARY KEY,
             nome TEXT,
             serie TEXT,
-            turno TEXT
+            turno TEXT,
+            tipo TEXT,
+            disciplinas_turma TEXT,
+            regras_neuro TEXT
         )
     """)
     cursor.execute("""
@@ -62,8 +65,8 @@ def salvar_turmas(turmas):
     cursor.execute("DELETE FROM turmas")
     for t in turmas:
         cursor.execute(
-            "INSERT INTO turmas (id, nome, serie, turno) VALUES (?, ?, ?, ?)",
-            (t.id, t.nome, t.serie, t.turno)
+            "INSERT INTO turmas (id, nome, serie, turno, tipo, disciplinas_turma, regras_neuro) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (t.id, t.nome, t.serie, t.turno, t.tipo, json.dumps(t.disciplinas_turma), json.dumps(t.regras_neuro))
         )
     conn.commit()
     conn.close()
@@ -74,7 +77,17 @@ def carregar_turmas():
     cursor.execute("SELECT * FROM turmas")
     rows = cursor.fetchall()
     from models import Turma
-    turmas = [Turma(nome=row[1], serie=row[2], turno=row[3], id=row[0]) for row in rows]
+    turmas = []
+    for row in rows:
+        turmas.append(Turma(
+            nome=row[1],
+            serie=row[2],
+            turno=row[3],
+            tipo=row[4],
+            disciplinas_turma=json.loads(row[5]),
+            regras_neuro=json.loads(row[6]),
+            id=row[0]
+        ))
     conn.close()
     return turmas
 
