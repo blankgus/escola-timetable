@@ -18,7 +18,9 @@ def init_db():
             id TEXT PRIMARY KEY,
             nome TEXT,
             disciplinas TEXT,
-            disponibilidade TEXT
+            disponibilidade_dias TEXT,
+            disponibilidade_horarios TEXT,
+            restricoes TEXT
         )
     """)
     cursor.execute("""
@@ -82,8 +84,8 @@ def salvar_professores(professores):
     cursor.execute("DELETE FROM professores")
     for p in professores:
         cursor.execute(
-            "INSERT INTO professores (id, nome, disciplinas, disponibilidade) VALUES (?, ?, ?, ?)",
-            (p.id, p.nome, json.dumps(p.disciplinas), json.dumps(list(p.disponibilidade)))
+            "INSERT INTO professores (id, nome, disciplinas, disponibilidade_dias, disponibilidade_horarios, restricoes) VALUES (?, ?, ?, ?, ?, ?)",
+            (p.id, p.nome, json.dumps(p.disciplinas), json.dumps(list(p.disponibilidade_dias)), json.dumps(list(p.disponibilidade_horarios)), json.dumps(list(p.restricoes)))
         )
     conn.commit()
     conn.close()
@@ -98,7 +100,9 @@ def carregar_professores():
         Professor(
             nome=row[1],
             disciplinas=json.loads(row[2]),
-            disponibilidade=set(json.loads(row[3])),
+            disponibilidade_dias=set(json.loads(row[3])),
+            disponibilidade_horarios=set(json.loads(row[4])),
+            restricoes=set(json.loads(row[5])),
             id=row[0]
         )
         for row in rows
