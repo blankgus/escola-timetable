@@ -108,12 +108,14 @@ with aba3:
         nome = st.text_input("Nome")
         discs = st.multiselect("Disciplinas", disc_nomes)
         dias = st.multiselect("Dias disponíveis", DIAS_SEMANA, default=["seg", "ter", "qua", "qui", "sex"])
+        horarios_disp = st.multiselect("Horários disponíveis", [1,2,3,4,5,6,7], default=[1,2,3,5,6,7])
         if st.form_submit_button("➕ Adicionar"):
             if nome and discs:
                 st.session_state.professores.append(Professor(
                     nome=nome,
                     disciplinas=discs,
-                    disponibilidade=set(dias)
+                    disponibilidade_dias=set(dias),
+                    disponibilidade_horarios=set(horarios_disp)
                 ))
                 st.rerun()
     for p in st.session_state.professores[:]:
@@ -123,11 +125,13 @@ with aba3:
                 discs_validas = [d for d in p.disciplinas if d in disc_nomes]
                 discs = st.multiselect("Disciplinas", disc_nomes, default=discs_validas, key=f"pd_{p.id}")
                 dias = st.multiselect("Dias disponíveis", DIAS_SEMANA, 
-                                     default=list(p.disponibilidade), key=f"pdias_{p.id}")
+                                     default=list(p.disponibilidade_dias), key=f"pdias_{p.id}")
+                horarios_disp = st.multiselect("Horários disponíveis", [1,2,3,4,5,6,7],
+                                              default=list(p.disponibilidade_horarios), key=f"phor_{p.id}")
                 col1, col2 = st.columns(2)
                 if col1.form_submit_button("💾 Salvar"):
                     st.session_state.professores = [
-                        Professor(nome, discs, set(dias), p.id) if item.id == p.id else item
+                        Professor(nome, discs, set(dias), set(horarios_disp), p.restricoes, p.id) if item.id == p.id else item
                         for item in st.session_state.professores
                     ]
                     st.rerun()
@@ -296,7 +300,7 @@ with aba7:
             if turma.serie in disc.series
         )
         capacidade_total = sum(
-            len(prof.disponibilidade)
+            len(prof.disponibilidade_dias) * len(prof.disponibilidade_horarios)
             for prof in st.session_state.professores
         )
         st.metric("Aulas necessárias", total_aulas)
@@ -307,31 +311,37 @@ with aba7:
             st.error("⚠️ Capacidade insuficiente")
 
 # =================== ABA 1: INÍCIO ===================
-col1, col2 = st.columns(2)
-with col1:
-    if st.button("💾 Salvar no Banco"):
-        try:
-            database.salvar_turmas(st.session_state.turmas)
-            database.salvar_professores(st.session_state.professores)
-            database.salvar_disciplinas(st.session_state.disciplinas)
-            database.salvar_salas(st.session_state.salas)
-            if "aulas" in st.session_state:
-                database.salvar_grade(st.session_state.aulas)
-            st.success("✅ Dados salvos!")
-        except Exception as e:
-            st.error(f"❌ Erro: {str(e)}")
-with col2:
-    if st.button("🔄 Carregar do Banco"):
-        try:
-            st.session_state.turmas = database.carregar_turmas()
-            st.session_state.professores = database.carregar_professores()
-            st.session_state.disciplinas = database.carregar_disciplinas()
-            st.session_state.salas = database.carregar_salas()
-            st.session_state.aulas = database.carregar_grade()
-            st.success("✅ Dados carregados!")
-            st.rerun()
-        except Exception as e:
-            st.error(f"❌ Erro: {str(e)}")
+with aba1:
+    st.header("Gerar Grade Horária")
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("💾 Salvar no Banco"):
+            try:
+                database.salvar_turmas(st.session_state.turmas)
+                database.salvar_professores(st.session_state.professores)
+                database.salvar_disciplinas(st.session_state.disciplinas)
+                database.salvar_salas(st.session_state.salas)
+                database.salvar_periodos(st.session_state.periodos)
+                database.salvar_feriados(st.session_state.feriados)
+                if "aulas" in st.session_state:
+                    database.salvar_grade(st.session_state.aulas)
+                st.success("✅ Dados salvos!")
+            except Exception as e:
+                st.error(f"❌ Erro: {str(e)}")
+    with col2:
+        if st.button("🔄 Carregar do Banco"):
+            try:
+                st.session_state.turmas = database.carregar_turmas()
+                st.session_state.professores = database.carregar_professores()
+                st.session_state.disciplinas = database.carregar_disciplinas()
+                st.session_state.salas = database.carregar_salas()
+                st.session_state.periodos = database.carregar_periodos() or []
+                st.session_state.feriados = database.carregar_feriados() or []
+                st.session_state.aulas = database.carregar_grade()
+                st.success("✅ Dados carregados!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"❌ Erro: {str(e)}")
     if not st.session_state.turmas or not st.session_state.professores or not st.session_state.disciplinas:
         st.warning("⚠️ Cadastre dados antes de gerar grade.")
         st.stop()
