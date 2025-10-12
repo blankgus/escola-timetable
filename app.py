@@ -25,7 +25,7 @@ HORARIOS_REAIS = {
     1: "07:00-07:50",
     2: "07:50-08:40",
     3: "08:40-09:30",
-    4: "09:30-09:50",
+    4: "09:30-09:50",  # INTERVALO
     5: "09:50-10:40",
     6: "10:40-11:30",
     7: "11:30-12:20"
@@ -271,7 +271,7 @@ with aba8:
                     st.rerun()
                 if col2.form_submit_button("🗑️ Excluir"):
                     st.session_state.feriados = [
-                        item for item in st.session_state.feriados if item["id"] != f["id"]
+                        item for item in st.session_state.feriados if item.id != f.id
                     ]
                     st.rerun()
 
@@ -381,8 +381,15 @@ with aba1:
                 columns="Dia",
                 values="Disciplina",
                 aggfunc=lambda x: x.iloc[0],
-                fill_value=""
-            ).reindex(columns=["dom", "seg", "ter", "qua", "qui", "sex", "sab"], fill_value="")
+                fill_value="Sem Aula"
+            ).reindex(columns=["dom", "seg", "ter", "qua", "qui", "sex", "sab"], fill_value="Sem Aula")
+            # Adicionar INTERVALO
+            for idx in tabela.index:
+                if idx[1] == 4:  # Horário 4
+                    dias_uteis = ["seg", "ter", "qua", "qui", "sex"]
+                    for dia in dias_uteis:
+                        if dia in tabela.columns:
+                            tabela.loc[idx, dia] = "INTERVALO"
             novo_indice = []
             for turma, horario_num in tabela.index:
                 horario_real = HORARIOS_REAIS.get(horario_num, f"{horario_num}ª aula")
