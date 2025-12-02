@@ -3,19 +3,24 @@ import json
 import uuid
 
 def init_db():
+    """Inicializa o banco de dados com todas as tabelas necessárias"""
     conn = sqlite3.connect("escola.db")
     cursor = conn.cursor()
+    
+    # Tabela turmas
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS turmas (
             id TEXT PRIMARY KEY,
             nome TEXT,
             serie TEXT,
             turno TEXT,
-            tipo TEXT,
-            disciplinas_turma TEXT,
-            regras_neuro TEXT
+            tipo TEXT DEFAULT 'regular',
+            disciplinas_turma TEXT DEFAULT '[]',
+            regras_neuro TEXT DEFAULT '[]'
         )
     """)
+    
+    # Tabela professores
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS professores (
             id TEXT PRIMARY KEY,
@@ -26,6 +31,8 @@ def init_db():
             restricoes TEXT
         )
     """)
+    
+    # Tabela disciplinas
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS disciplinas (
             id TEXT PRIMARY KEY,
@@ -37,6 +44,8 @@ def init_db():
             cor_fonte TEXT
         )
     """)
+    
+    # Tabela salas
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS salas (
             id TEXT PRIMARY KEY,
@@ -45,6 +54,8 @@ def init_db():
             tipo TEXT
         )
     """)
+    
+    # Tabela grades
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS grades (
             id TEXT PRIMARY KEY,
@@ -56,6 +67,26 @@ def init_db():
             sala TEXT
         )
     """)
+    
+    # Tabela periodos
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS periodos (
+            id TEXT PRIMARY KEY,
+            nome TEXT,
+            inicio TEXT,
+            fim TEXT
+        )
+    """)
+    
+    # Tabela feriados
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS feriados (
+            id TEXT PRIMARY KEY,
+            data TEXT,
+            motivo TEXT
+        )
+    """)
+    
     conn.commit()
     conn.close()
 
@@ -76,18 +107,46 @@ def carregar_turmas():
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM turmas")
     rows = cursor.fetchall()
+    
     from models import Turma
     turmas = []
+    
     for row in rows:
+        # DEBUG: descomente para ver a estrutura
+        # print(f"DEBUG: linha={row}, colunas={len(row)}")
+        
+        # Determinar valores com fallback seguro
+        num_colunas = len(row)
+        
+        # Colunas obrigatórias (0-3)
+        id_val = row[0] if num_colunas > 0 else str(uuid.uuid4())
+        nome_val = row[1] if num_colunas > 1 else ""
+        serie_val = row[2] if num_colunas > 2 else ""
+        turno_val = row[3] if num_colunas > 3 else "manha"
+        
+        # Colunas opcionais (4-6)
+        tipo_val = row[4] if num_colunas > 4 else "regular"
+        
+        if num_colunas > 5 and row[5]:
+            disciplinas_turma_val = json.loads(row[5])
+        else:
+            disciplinas_turma_val = []
+            
+        if num_colunas > 6 and row[6]:
+            regras_neuro_val = json.loads(row[6])
+        else:
+            regras_neuro_val = []
+        
         turmas.append(Turma(
-            nome=row[1],
-            serie=row[2],
-            turno=row[3],
-            tipo=row[4],
-            disciplinas_turma=json.loads(row[5]),
-            regras_neuro=json.loads(row[6]),
-            id=row[0]
+            nome=nome_val,
+            serie=serie_val,
+            turno=turno_val,
+            tipo=tipo_val,
+            disciplinas_turma=disciplinas_turma_val,
+            regras_neuro=regras_neuro_val,
+            id=id_val
         ))
+    
     conn.close()
     return turmas
 
@@ -210,3 +269,60 @@ def carregar_grade():
     ]
     conn.close()
     return aulas
+
+def salvar_periodos(periodos):
+    conn = sqlite3.connect("escola.db")
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM periodos")
+    for p in periodos:
+        cursor.execute(
+            "INSERT INTO periodos (id, nome, inicio, fim) VALUES (?, ?, ?, ?)",
+            (p["id"], p["nome"], p["inicio"], p["fim"])
+        )
+    conn.commit()
+    conn.close()
+
+def carregar_periodos():
+    conn = sqlite3.connect("escola.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM periodos")
+    rows = cursor.fetchall()
+    periodos = [
+        {
+            "id": row[0],
+            "nome": row[1],
+            "inicio": row[2],
+            "fim": row[3]
+        }
+        for row in rows
+    ]
+    conn.close()
+    return periodos
+
+def salvar_feriados(feriados):
+    conn = sqlite3.connect("escola.db")
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM feriados")
+    for f in feriados:
+        cursor.execute(
+            "INSERT INTO feriados (id, data, motivo) VALUES (?, ?, ?)",
+            (f["id"], f["data"], f["motivo"])
+        )
+    conn.commit()
+    conn.close()
+
+def carregar_feriados():
+    conn = sqlite3.connect("escola.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM feriados")
+    rows = cursor.fetchall()
+    feriados = [
+        {
+            "id": row[0],
+            "data": row[1],
+            "motivo": row[2]
+        }
+        for row in rows
+    ]
+    conn.close()
+    return feriados
