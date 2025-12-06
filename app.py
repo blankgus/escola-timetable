@@ -437,7 +437,7 @@ with abas[3]:  # ABA TURMAS
                 serie = st.text_input("Série* (ex: 8ano)")
             with col2:
                 turno = st.selectbox("Turno*", ["manha"], disabled=True)
-                grupo = st.selectbox("Grupo*", ["A", "B")
+                grupo = st.selectbox("Grupo*", ["A", "B"])
             
             # Determinar segmento automaticamente
             segmento = "EM" if serie and 'em' in serie.lower() else "EF_II"
