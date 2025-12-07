@@ -1,232 +1,210 @@
-2. database.py
-```python
-# database.py
-import sqlite3
 import json
-from typing import List
-from models import Turma, Professor, Disciplina, Sala, Feriado, Periodo, Aula
+import os
+from models import Disciplina, Professor, Turma, Sala
 
-DBNAME = "escola.db"
+# Nome do arquivo de banco de dados
+DB_FILE = "escola_db.json"
 
+def carregar_dados():
+    """Carrega todos os dados do arquivo JSON"""
+    if not os.path.exists(DB_FILE):
+        return {
+            "disciplinas": [],
+            "professores": [], 
+            "turmas": [],
+            "salas": []
+        }
+    
+    try:
+        with open(DB_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Erro ao carregar dados: {e}")
+        return {
+            "disciplinas": [],
+            "professores": [],
+            "turmas": [],
+            "salas": []
+        }
 
-def _conn():
-    return sqlite3.connect(DBNAME)
+def salvar_dados(dados):
+    """Salva todos os dados no arquivo JSON"""
+    try:
+        with open(DB_FILE, 'w', encoding='utf-8') as f:
+            json.dump(dados, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as e:
+        print(f"Erro ao salvar dados: {e}")
+        return False
 
+def carregar_disciplinas():
+    """Carrega disciplinas do banco de dados"""
+    dados = carregar_dados()
+    disciplinas = []
+    
+    for disc_data in dados.get("disciplinas", []):
+        try:
+            # ✅ CORREÇÃO: Garantir compatibilidade com turmas como lista
+            turmas = disc_data.get("turmas", [])
+            if isinstance(turmas, str):
+                # Se for string, converter para lista (backward compatibility)
+                turmas = [turmas] if turmas else []
+            
+            disciplina = Disciplina(
+                nome=disc_data["nome"],
+                carga_semanal=disc_data["carga_semanal"],
+                tipo=disc_data["tipo"],
+                turmas=turmas,  # ✅ AGORA sempre lista
+                grupo=disc_data.get("grupo", "A"),
+                cor_fundo=disc_data.get("cor_fundo", "#4A90E2"),
+                cor_fonte=disc_data.get("cor_fonte", "#FFFFFF"),
+                id=disc_data.get("id", str(disc_data.get("_id", "")))
+            )
+            disciplinas.append(disciplina)
+        except Exception as e:
+            print(f"Erro ao carregar disciplina {disc_data}: {e}")
+    
+    return disciplinas
 
-# ------------------------------------------------------------------
-def init_db():
-    conn = _conn()
-    cur = conn.cursor()
+def salvar_disciplinas(disciplinas):
+    """Salva disciplinas no banco de dados"""
+    dados = carregar_dados()
+    
+    dados["disciplinas"] = []
+    for disc in disciplinas:
+        disc_data = {
+            "id": disc.id,
+            "nome": disc.nome,
+            "carga_semanal": disc.carga_semanal,
+            "tipo": disc.tipo,
+            "turmas": disc.turmas,  # ✅ AGORA salva como lista
+            "grupo": disc.grupo,
+            "cor_fundo": disc.cor_fundo,
+            "cor_fonte": disc.cor_fonte
+        }
+        dados["disciplinas"].append(disc_data)
+    
+    return salvar_dados(dados)
 
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS turmas (
-            id TEXT PRIMARY KEY,
-            nome TEXT,
-            serie TEXT,
-            turno TEXT,
-            tipo TEXT,
-            disciplinas_turma TEXT,
-            regras_neuro TEXT
-        )
-    """)
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS professores (
-            id TEXT PRIMARY KEY,
-            nome TEXT,
-            disciplinas TEXT,
-            disponibilidade_dias TEXT,
-            disponibilidade_horarios TEXT,
-            restricoes TEXT,
-            turmas_permitidas TEXT,
-            dias_indisponiveis TEXT,
-            horarios_indisponiveis TEXT
-        )
-    """)
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS disciplinas (
-            id TEXT PRIMARY KEY,
-            nome TEXT,
-            carga_semanal INTEGER,
-            tipo TEXT,
-            series TEXT,
-            cor_fundo TEXT,
-            cor_fonte TEXT
-        )
-    """)
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS salas (
-            id TEXT PRIMARY KEY,
-            nome TEXT,
-            capacidade INTEGER,
-            tipo TEXT
-        )
-    """)
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS periodos (
-            id TEXT PRIMARY KEY,
-            nome TEXT,
-            inicio TEXT,
-            fim TEXT
-        )
-    """)
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS feriados (
-            id TEXT PRIMARY KEY,
-            data TEXT,
-            motivo TEXT
-        )
-    """)
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS grades (
-            id TEXT PRIMARY KEY,
-            turma TEXT,
-            disciplina TEXT,
-            professor TEXT,
-            dia TEXT,
-            horario INTEGER,
-            sala TEXT
-        )
-    """)
-    conn.commit()
-    conn.close()
+def carregar_professores():
+    """Carrega professores do banco de dados"""
+    dados = carregar_dados()
+    professores = []
+    
+    for prof_data in dados.get("professores", []):
+        try:
+            professor = Professor(
+                nome=prof_data["nome"],
+                disciplinas=prof_data["disciplinas"],
+                disponibilidade=set(prof_data.get("disponibilidade", [])),
+                grupo=prof_data.get("grupo", "A"),
+                horarios_indisponiveis=set(prof_data.get("horarios_indisponiveis", [])),
+                id=prof_data.get("id", str(prof_data.get("_id", "")))
+            )
+            professores.append(professor)
+        except Exception as e:
+            print(f"Erro ao carregar professor {prof_data}: {e}")
+    
+    return professores
 
+def salvar_professores(professores):
+    """Salva professores no banco de dados"""
+    dados = carregar_dados()
+    
+    dados["professores"] = []
+    for prof in professores:
+        prof_data = {
+            "id": prof.id,
+            "nome": prof.nome,
+            "disciplinas": prof.disciplinas,
+            "disponibilidade": list(prof.disponibilidade),
+            "grupo": prof.grupo,
+            "horarios_indisponiveis": list(prof.horarios_indisponiveis)
+        }
+        dados["professores"].append(prof_data)
+    
+    return salvar_dados(dados)
 
-# ---------------------------- TURMAS -------------------------------
-def salvar_turmas(turmas: List[Turma]):
-    conn = _conn(); cur = conn.cursor()
-    cur.execute("DELETE FROM turmas")
-    for t in turmas:
-        cur.execute("""
-            INSERT INTO turmas VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (
-            t.id, t.nome, t.serie, t.turno, t.tipo,
-            json.dumps(t.disciplinas_turma),
-            json.dumps(t.regras_neuro)
-        ))
-    conn.commit(); conn.close()
+def carregar_turmas():
+    """Carrega turmas do banco de dados"""
+    dados = carregar_dados()
+    turmas = []
+    
+    for turma_data in dados.get("turmas", []):
+        try:
+            turma = Turma(
+                nome=turma_data["nome"],
+                serie=turma_data["serie"],
+                turno=turma_data["turno"],
+                grupo=turma_data.get("grupo", "A"),
+                segmento=turma_data.get("segmento", "EF_II"),
+                id=turma_data.get("id", str(turma_data.get("_id", "")))
+            )
+            turmas.append(turma)
+        except Exception as e:
+            print(f"Erro ao carregar turma {turma_data}: {e}")
+    
+    return turmas
 
+def salvar_turmas(turmas):
+    """Salva turmas no banco de dados"""
+    dados = carregar_dados()
+    
+    dados["turmas"] = []
+    for turma in turmas:
+        turma_data = {
+            "id": turma.id,
+            "nome": turma.nome,
+            "serie": turma.serie,
+            "turno": turma.turno,
+            "grupo": turma.grupo,
+            "segmento": turma.segmento
+        }
+        dados["turmas"].append(turma_data)
+    
+    return salvar_dados(dados)
 
-def carregar_turmas() -> List[Turma]:
-    conn = _conn(); cur = conn.cursor()
-    cur.execute("SELECT * FROM turmas")
-    rows = cur.fetchall(); conn.close()
-    return [
-        Turma(
-            nome=r[1], serie=r[2], turno=r[3], tipo=r[4],
-            disciplinas_turma=json.loads(r[5]), regras_neuro=json.loads(r[6]), id=r[0]
-        ) for r in rows
-    ]
+def carregar_salas():
+    """Carrega salas do banco de dados"""
+    dados = carregar_dados()
+    salas = []
+    
+    for sala_data in dados.get("salas", []):
+        try:
+            sala = Sala(
+                nome=sala_data["nome"],
+                capacidade=sala_data["capacidade"],
+                tipo=sala_data.get("tipo", "normal"),
+                id=sala_data.get("id", str(sala_data.get("_id", "")))
+            )
+            salas.append(sala)
+        except Exception as e:
+            print(f"Erro ao carregar sala {sala_data}: {e}")
+    
+    return salas
 
+def salvar_salas(salas):
+    """Salva salas no banco de dados"""
+    dados = carregar_dados()
+    
+    dados["salas"] = []
+    for sala in salas:
+        sala_data = {
+            "id": sala.id,
+            "nome": sala.nome,
+            "capacidade": sala.capacidade,
+            "tipo": sala.tipo
+        }
+        dados["salas"].append(sala_data)
+    
+    return salvar_dados(dados)
 
-# -------------------------- PROFESSORES ----------------------------
-def salvar_professores(profs: List[Professor]):
-    conn = _conn(); cur = conn.cursor()
-    cur.execute("DELETE FROM professores")
-    for p in profs:
-        cur.execute("""
-            INSERT INTO professores VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            p.id, p.nome,
-            json.dumps(p.disciplinas),
-            json.dumps(list(p.disponibilidade_dias)),
-            json.dumps(list(p.disponibilidade_horarios)),
-            json.dumps(list(p.restricoes)),
-            json.dumps(list(p.turmas_permitidas)),
-            json.dumps(list(p.dias_indisponiveis)),
-            json.dumps(list(p.horarios_indisponiveis)),
-        ))
-    conn.commit(); conn.close()
-
-
-def carregar_professores() -> List[Professor]:
-    conn = _conn(); cur = conn.cursor()
-    cur.execute("SELECT * FROM professores")
-    rows = cur.fetchall(); conn.close()
-    return [
-        Professor(
-            nome=r[1],
-            disciplinas=json.loads(r[2]),
-            disponibilidade_dias=set(json.loads(r[3])),
-            disponibilidade_horarios=set(json.loads(r[4])),
-            restricoes=set(json.loads(r[5])),
-            turmas_permitidas=set(json.loads(r[6])),
-            dias_indisponiveis=set(json.loads(r[7])),
-            horarios_indisponiveis=set(json.loads(r[8])),
-            id=r[0]
-        ) for r in rows
-    ]
-
-
-# -------------------------- DISCIPLINAS ----------------------------
-def salvar_disciplinas(discs: List[Disciplina]):
-    conn = _conn(); cur = conn.cursor()
-    cur.execute("DELETE FROM disciplinas")
-    for d in discs:
-        cur.execute("""
-            INSERT INTO disciplinas VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (
-            d.id, d.nome, d.carga_semanal, d.tipo,
-            json.dumps(d.series), d.cor_fundo, d.cor_fonte
-        ))
-    conn.commit(); conn.close()
-
-
-def carregar_disciplinas() -> List[Disciplina]:
-    conn = _conn(); cur = conn.cursor()
-    cur.execute("SELECT * FROM disciplinas")
-    rows = cur.fetchall(); conn.close()
-    return [
-        Disciplina(
-            nome=r[1], carga_semanal=r[2], tipo=r[3],
-            series=json.loads(r[4]), cor_fundo=r[5], cor_fonte=r[6], id=r[0]
-        ) for r in rows
-    ]
-
-
-# ----------------------------- SALAS -------------------------------
-def salvar_salas(salas: List[Sala]):
-    conn = _conn(); cur = conn.cursor()
-    cur.execute("DELETE FROM salas")
-    for s in salas:
-        cur.execute("INSERT INTO salas VALUES (?, ?, ?, ?)", (s.id, s.nome, s.capacidade, s.tipo))
-    conn.commit(); conn.close()
-
-
-def carregar_salas() -> List[Sala]:
-    conn = _conn(); cur = conn.cursor()
-    cur.execute("SELECT * FROM salas")
-    rows = cur.fetchall(); conn.close()
-    return [Sala(nome=r[1], capacidade=r[2], tipo=r[3], id=r[0]) for r in rows]
-
-
-# --------------------------- PERÍODOS ------------------------------
-def salvar_periodos(periodos: List[dict]):
-    conn = _conn(); cur = conn.cursor()
-    cur.execute("DELETE FROM periodos")
-    for p in periodos:
-        cur.execute("INSERT INTO periodos VALUES (?, ?, ?, ?)", (p["id"], p["nome"], p["inicio"], p["fim"]))
-    conn.commit(); conn.close()
-
-
-def carregar_periodos() -> List[dict]:
-    conn = _conn(); cur = conn.cursor()
-    cur.execute("SELECT * FROM periodos")
-    rows = cur.fetchall(); conn.close()
-    return [{"id": r[0], "nome": r[1], "inicio": r[2], "fim": r[3]} for r in rows]
-
-
-# --------------------------- FERIADOS ------------------------------
-def salvar_feriados(feriados: List[dict]):
-    conn = _conn(); cur = conn.cursor()
-    cur.execute("DELETE FROM feriados")
-    for f in feriados:
-        cur.execute("INSERT INTO feriados VALUES (?, ?, ?)", (f["id"], f["data"], f["motivo"]))
-    conn.commit(); conn.close()
-
-
-def carregar_feriados() -> List[dict]:
-    conn = _conn(); cur = conn.cursor()
-    cur.execute("SELECT * FROM feriados")
-    rows = cur.fetchall(); conn.close()
-    return [{"id": r[0], "data": r[1], "motivo": r[2]} for r in rows]
-```
+def resetar_banco():
+    """Reseta o banco de dados (para desenvolvimento)"""
+    try:
+        if os.path.exists(DB_FILE):
+            os.remove(DB_FILE)
+        return True
+    except Exception as e:
+        print(f"Erro ao resetar banco: {e}")
+        return False
